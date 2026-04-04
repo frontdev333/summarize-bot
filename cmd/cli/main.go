@@ -35,5 +35,6 @@ func main() {
 		return ctx.Send("pong")
 	})
 
+	slog.Info("bot started, polling updates")
 	b.Start()
 }
