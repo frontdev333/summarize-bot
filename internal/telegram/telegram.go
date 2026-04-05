@@ -60,7 +60,7 @@ func RegisterCoreHandlers(b *telebot.Bot) {
 	})
 }
 
-func RegisterSubscriptionHandlers(b *telebot.Bot, subs subscriptions.Store, maxTopics int) {
+func RegisterSubscriptionHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, maxTopics int) {
 	b.Handle("/add", func(ctx telebot.Context) error {
 		topic, _ := strings.CutPrefix(ctx.Text(), "/add")
 		topic = strings.TrimSpace(topic)
