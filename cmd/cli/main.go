@@ -2,9 +2,9 @@ package main
 
 import (
 	"frontdev333/summarize-bot/internal/config"
+	"frontdev333/summarize-bot/internal/telegram"
 	"log/slog"
 	"os"
-	"time"
 
 	"gopkg.in/telebot.v4"
 )
@@ -16,22 +16,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	settings := telebot.Settings{
-		Token:  token,
-		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
-	}
-
-	b, err := telebot.NewBot(settings)
+	b, err := telegram.NewMinimalBot(token)
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
 	}
 
-	b.Handle("/start", func(ctx telebot.Context) error {
+	tgbot, ok := b.(*telegram.MinimalBot)
+	if !ok {
+		slog.Error("failed to cast bot to MinimalBot")
+		os.Exit(1)
+	}
+
+	tgbot.Underlying().Handle("/start", func(ctx telebot.Context) error {
 		return ctx.Send("Привет! Я готов. Используй /ping для проверки.")
 	})
 
-	b.Handle("/ping", func(ctx telebot.Context) error {
+	tgbot.Underlying().Handle("/ping", func(ctx telebot.Context) error {
 		return ctx.Send("pong")
 	})
 
