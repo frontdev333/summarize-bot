@@ -28,14 +28,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	tgbot.Underlying().Handle("/start", func(ctx telebot.Context) error {
-		return ctx.Send("Привет! Я готов. Используй /ping для проверки.")
-	})
-
-	tgbot.Underlying().Handle("/ping", func(ctx telebot.Context) error {
-		return ctx.Send("pong")
-	})
+	RegisterCoreHandlers(tgbot.Underlying())
 
 	slog.Info("bot started, polling updates")
 	b.Start()
+}
+
+func RegisterCoreHandlers(b *telebot.Bot) {
+	b.Handle("/start", func(ctx telebot.Context) error {
+		return ctx.Send("Привет! Я готов. Используй /ping для проверки.")
+	})
+
+	b.Handle("/ping", func(ctx telebot.Context) error {
+		return ctx.Send("pong")
+	})
+
+	b.Handle(telebot.OnText, func(ctx telebot.Context) error {
+		return ctx.Send("Неизвестная команда. Доступно: /start, /ping")
+	})
 }
