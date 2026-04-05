@@ -38,7 +38,7 @@ func main() {
 	}
 
 	telegram.RegisterCoreHandlers(tgbot.Underlying())
-	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, 64)
+	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), &store, 64)
 
 	go func() {
 		<-shtdwn
