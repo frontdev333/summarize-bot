@@ -32,7 +32,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	store := subscriptions.Store{
+	store := subscriptions.InMemoryStore{
 		Mtx:  &sync.RWMutex{},
 		Data: make(map[int64][]string, 64),
 	}

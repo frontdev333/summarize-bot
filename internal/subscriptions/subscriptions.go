@@ -1,7 +1,11 @@
 package subscriptions
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -13,12 +17,49 @@ type SubscriptionStore interface {
 	GetTopics(userID int64) []string
 }
 
-type Store struct {
+type InMemoryStore struct {
 	Mtx  *sync.RWMutex
 	Data map[int64][]string
 }
 
-func (s *Store) AddTopic(userID int64, topic string) error {
+type FileStore struct {
+	mtx  *sync.RWMutex
+	path string
+	data map[int64][]string `json:"data"`
+}
+
+func NewFileStore(pth string) (*FileStore, error) {
+	bytes, err := os.ReadFile(pth)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, err
+		}
+
+		file, err := os.Create(pth)
+		if err != nil {
+			return nil, err
+		}
+		defer file.Close()
+
+		return &FileStore{
+			mtx:  &sync.RWMutex{},
+			path: pth,
+			data: make(map[int64][]string),
+		}, nil
+	}
+
+	store := &FileStore{}
+
+	if err = json.Unmarshal(bytes, store); err != nil {
+		return nil, err
+	}
+
+	store.path = pth
+
+	return store, nil
+}
+
+func (s *InMemoryStore) AddTopic(userID int64, topic string) error {
 	s.Mtx.RLock()
 	ok := slices.Contains(s.Data[userID], topic)
 	s.Mtx.RUnlock()
@@ -37,7 +78,7 @@ func (s *Store) AddTopic(userID int64, topic string) error {
 	return nil
 }
 
-func (s *Store) RemoveTopic(userID int64, topic string) error {
+func (s *InMemoryStore) RemoveTopic(userID int64, topic string) error {
 	s.Mtx.Lock()
 	defer s.Mtx.Unlock()
 
@@ -58,11 +99,46 @@ func (s *Store) RemoveTopic(userID int64, topic string) error {
 	return nil
 }
 
-func (s *Store) GetTopics(userID int64) []string {
+func (s *InMemoryStore) GetTopics(userID int64) []string {
 	s.Mtx.RLock()
 	defer s.Mtx.RUnlock()
 	topics := s.Data[userID]
 	result := make([]string, len(topics))
 	copy(result, topics)
 	return result
+}
+
+func (s *FileStore) Save() error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	bytes, err := json.MarshalIndent(s, "", "	")
+	if err != nil {
+		return err
+	}
+
+	pth, _ := filepath.Split(s.path)
+
+	tmpPath := filepath.Join(pth, "tmp_res.json")
+	file, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	if _, err = file.Write(bytes); err != nil {
+		return err
+	}
+
+	return os.Rename(tmpPath, s.path)
+}
+
+func (s *FileStore) AddTopic(userID int64, topic string) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
+	ok := slices.Contains(s.data[userID], topic)
+	if !ok {
+		// TODO:: Остановочка тут
+	}
+
 }
