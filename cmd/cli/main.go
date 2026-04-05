@@ -2,12 +2,12 @@ package main
 
 import (
 	"frontdev333/summarize-bot/internal/config"
+	"frontdev333/summarize-bot/internal/subscriptions"
 	"frontdev333/summarize-bot/internal/telegram"
 	"log/slog"
 	"os"
 	"os/signal"
-
-	"gopkg.in/telebot.v4"
+	"sync"
 )
 
 func main() {
@@ -32,7 +32,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	RegisterCoreHandlers(tgbot.Underlying())
+	store := subscriptions.Store{
+		Mtx:  &sync.RWMutex{},
+		Data: make(map[int64][]string, 64),
+	}
+
+	telegram.RegisterCoreHandlers(tgbot.Underlying())
+	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, 64)
 
 	go func() {
 		<-shtdwn
@@ -48,18 +54,4 @@ func main() {
 
 	slog.Info("bot started, polling updates")
 	b.Start()
-}
-
-func RegisterCoreHandlers(b *telebot.Bot) {
-	b.Handle("/start", func(ctx telebot.Context) error {
-		return ctx.Send("Привет! Я готов. Используй /ping для проверки.")
-	})
-
-	b.Handle("/ping", func(ctx telebot.Context) error {
-		return ctx.Send("pong")
-	})
-
-	b.Handle(telebot.OnText, func(ctx telebot.Context) error {
-		return ctx.Send("Неизвестная команда. Доступно: /start, /ping")
-	})
 }
