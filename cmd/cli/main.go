@@ -1,22 +1,27 @@
 package main
 
 import (
+	"context"
 	"frontdev333/summarize-bot/internal/config"
 	"frontdev333/summarize-bot/internal/telegram"
 	"log/slog"
 	"os"
+	"os/signal"
 
 	"gopkg.in/telebot.v4"
 )
 
 func main() {
-	token, err := config.LoadToken()
+	shtdwn, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	cfg, err := config.LoadConfig()
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
 	}
 
-	b, err := telegram.NewMinimalBot(token)
+	b, err := telegram.NewMinimalBot(cfg.TelegramBotToken)
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
@@ -29,6 +34,18 @@ func main() {
 	}
 
 	RegisterCoreHandlers(tgbot.Underlying())
+
+	go func() {
+		<-shtdwn.Done()
+		slog.Info("bot stopping")
+
+		if err = b.Stop(); err != nil {
+			slog.Error("bot stop: %w", err)
+			return
+		}
+
+		slog.Info("bot stopped")
+	}()
 
 	slog.Info("bot started, polling updates")
 	b.Start()
