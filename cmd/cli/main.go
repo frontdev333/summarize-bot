@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"frontdev333/summarize-bot/internal/config"
 	"frontdev333/summarize-bot/internal/telegram"
 	"log/slog"
@@ -12,8 +11,8 @@ import (
 )
 
 func main() {
-	shtdwn, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
+	shtdwn := make(chan os.Signal)
+	signal.Notify(shtdwn, os.Interrupt)
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
@@ -36,7 +35,7 @@ func main() {
 	RegisterCoreHandlers(tgbot.Underlying())
 
 	go func() {
-		<-shtdwn.Done()
+		<-shtdwn
 		slog.Info("bot stopping")
 
 		if err = b.Stop(); err != nil {
