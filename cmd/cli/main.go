@@ -38,7 +38,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	primary := news.NewNewsAPIClient("", "https://newsapi.org/v2/everything")
+	primary := news.NewNewsAPIClient(cfg.NewsAPIKey, "https://newsapi.org/v2/everything")
 
 	secondary := &news.MockProvider{
 		Articles: map[string][]news.Article{
@@ -53,7 +53,13 @@ func main() {
 		},
 	}
 
-	provider := news.NewFallbackProvider(primary, secondary)
+	var provider news.Provider
+
+	if cfg.NewsAPIKey != "" {
+		provider = news.NewFallbackProvider(primary, secondary)
+	} else {
+		provider = secondary
+	}
 
 	news.RegisterNewsHandlers(tgbot.Underlying(), store, provider)
 	telegram.RegisterCoreHandlers(tgbot.Underlying())
