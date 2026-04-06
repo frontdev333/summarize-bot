@@ -9,6 +9,7 @@ type Config struct {
 	TelegramBotToken string
 	LogLevel         string
 	StorePath        string
+	NewsAPIKey       string
 }
 
 func LoadConfig() (Config, error) {
@@ -27,9 +28,15 @@ func LoadConfig() (Config, error) {
 		path = "subscriptions.json"
 	}
 
+	key, ok := os.LookupEnv("NEWSAPI_KEY")
+	if !ok {
+		key = ""
+	}
+
 	return Config{
 		TelegramBotToken: token,
 		LogLevel:         level,
 		StorePath:        path,
+		NewsAPIKey:       key,
 	}, nil
 }

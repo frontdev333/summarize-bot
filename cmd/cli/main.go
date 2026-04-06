@@ -38,7 +38,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	provider := news.MockProvider{
+	primary := news.NewNewsAPIClient("", "https://newsapi.org/v2/everything")
+
+	secondary := &news.MockProvider{
 		Articles: map[string][]news.Article{
 			"golang": {
 				{Title: "Go 1.24 Released", Source: "go.dev", URL: "https://go.dev/blog/"},
@@ -51,7 +53,9 @@ func main() {
 		},
 	}
 
-	news.RegisterNewsHandlers(tgbot.Underlying(), store, &provider)
+	provider := news.NewFallbackProvider(primary, secondary)
+
+	news.RegisterNewsHandlers(tgbot.Underlying(), store, provider)
 	telegram.RegisterCoreHandlers(tgbot.Underlying())
 	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, 64)
 
