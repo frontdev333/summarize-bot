@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 )
 
@@ -25,7 +24,7 @@ type InMemoryStore struct {
 type FileStore struct {
 	mtx  *sync.RWMutex
 	path string
-	data map[int64][]string `json:"data"`
+	Data map[int64][]string `json:"Data"`
 }
 
 func NewFileStore(pth string) (*FileStore, error) {
@@ -44,7 +43,7 @@ func NewFileStore(pth string) (*FileStore, error) {
 		return &FileStore{
 			mtx:  &sync.RWMutex{},
 			path: pth,
-			data: make(map[int64][]string),
+			Data: make(map[int64][]string),
 		}, nil
 	}
 
@@ -88,14 +87,12 @@ func (s *InMemoryStore) RemoveTopic(userID int64, topic string) error {
 		return nil
 	}
 
-	existsTopics := strings.Join(s.Data[userID], ",")
-	fmt.Println(existsTopics)
-	before, after, found := strings.Cut(existsTopics, topic+",")
-	if !found {
+	id := slices.Index(s.Data[userID], topic)
+	if id == -1 {
 		return fmt.Errorf("user has no such topic")
 	}
 
-	s.Data[userID] = strings.Split(before+after, ",")
+	s.Data[userID] = slices.Delete(s.Data[userID], id, id+1)
 
 	return nil
 }
@@ -109,9 +106,7 @@ func (s *InMemoryStore) GetTopics(userID int64) []string {
 	return result
 }
 
-func (s *FileStore) Save() error {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
+func (s *FileStore) saveLocked() error {
 	bytes, err := json.MarshalIndent(s, "", "	")
 	if err != nil {
 		return err
@@ -141,13 +136,13 @@ func (s *FileStore) AddTopic(userID int64, topic string) error {
 		return fmt.Errorf("topic name can't be empty")
 	}
 
-	ok := slices.Contains(s.data[userID], topic)
+	ok := slices.Contains(s.Data[userID], topic)
 	if ok {
 		return fmt.Errorf("topic is already added")
 	}
 
-	s.data[userID] = append(s.data[userID], topic)
-	return s.Save()
+	s.Data[userID] = append(s.Data[userID], topic)
+	return s.saveLocked()
 
 }
 
@@ -155,26 +150,26 @@ func (s *FileStore) RemoveTopic(userID int64, topic string) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	if len(s.data[userID]) <= 1 {
-		s.data[userID] = []string{}
-		return s.Save()
+	if len(s.Data[userID]) <= 1 {
+		s.Data[userID] = []string{}
+		return s.saveLocked()
 	}
 
-	existsTopics := strings.Join(s.data[userID], ",")
-	before, after, found := strings.Cut(existsTopics, topic+",")
-	if !found {
+	id := slices.Index(s.Data[userID], topic)
+
+	if id == -1 {
 		return fmt.Errorf("user has no such topic")
 	}
 
-	s.data[userID] = strings.Split(before+after, ",")
+	s.Data[userID] = slices.Delete(s.Data[userID], id, id+1)
 
-	return s.Save()
+	return s.saveLocked()
 }
 
 func (s *FileStore) GetTopics(userID int64) []string {
 	s.mtx.RLock()
 	defer s.mtx.RUnlock()
-	topics := s.data[userID]
+	topics := s.Data[userID]
 	result := make([]string, len(topics))
 	copy(result, topics)
 	return result
