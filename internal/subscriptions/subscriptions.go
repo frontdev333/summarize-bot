@@ -55,6 +55,7 @@ func NewFileStore(pth string) (*FileStore, error) {
 	}
 
 	store.path = pth
+	store.mtx = &sync.RWMutex{}
 
 	return store, nil
 }
