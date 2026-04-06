@@ -128,8 +128,9 @@ func RegisterNewsHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, 
 		}
 		allArticles := make([]Article, 0)
 
+		limit := 10
 		for _, v := range topics {
-			partArticles, err := prov.FetchByTopic(v, 10)
+			partArticles, err := prov.FetchByTopic(v, limit)
 			if err != nil {
 				slog.Error("can not fetch articles", "topic", v, "error", err)
 				continue
@@ -140,9 +141,15 @@ func RegisterNewsHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, 
 
 		var res strings.Builder
 		for _, a := range allArticles {
+			if limit == 0 {
+				break
+			}
 			articleCard := fmt.Sprintf("\nЗаголовок: %s\nСсылка: %s\nИсточник: %s\n", a.Title, a.URL, a.Source)
 			res.WriteString(articleCard)
+			limit--
 		}
+
+		fmt.Println(res.String())
 
 		return ctx.Send(res.String())
 	})
