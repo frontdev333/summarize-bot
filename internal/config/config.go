@@ -8,6 +8,7 @@ import (
 type Config struct {
 	TelegramBotToken string
 	LogLevel         string
+	StorePath        string
 }
 
 func LoadConfig() (Config, error) {
@@ -21,8 +22,14 @@ func LoadConfig() (Config, error) {
 		level = "info"
 	}
 
+	path, ok := os.LookupEnv("STORE_PATH")
+	if !ok || path == "" {
+		path = "subscriptions.json"
+	}
+
 	return Config{
 		TelegramBotToken: token,
 		LogLevel:         level,
+		StorePath:        path,
 	}, nil
 }

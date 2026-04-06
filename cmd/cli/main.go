@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"sync"
 )
 
 func main() {
@@ -32,13 +31,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	store := subscriptions.InMemoryStore{
-		Mtx:  &sync.RWMutex{},
-		Data: make(map[int64][]string, 64),
+	store, err := subscriptions.NewFileStore(cfg.StorePath)
+	if err != nil {
+		slog.Error("create file store", "error", err)
+		os.Exit(1)
 	}
 
 	telegram.RegisterCoreHandlers(tgbot.Underlying())
-	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), &store, 64)
+	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, 64)
 
 	go func() {
 		<-shtdwn

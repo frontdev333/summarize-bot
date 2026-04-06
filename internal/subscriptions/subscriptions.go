@@ -136,9 +136,45 @@ func (s *FileStore) AddTopic(userID int64, topic string) error {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
 
-	ok := slices.Contains(s.data[userID], topic)
-	if !ok {
-		// TODO:: Остановочка тут
+	if topic == "" {
+		return fmt.Errorf("topic name can't be empty")
 	}
 
+	ok := slices.Contains(s.data[userID], topic)
+	if ok {
+		return fmt.Errorf("topic is already added")
+	}
+
+	s.data[userID] = append(s.data[userID], topic)
+	return s.Save()
+
+}
+
+func (s *FileStore) RemoveTopic(userID int64, topic string) error {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
+	if len(s.data[userID]) <= 1 {
+		s.data[userID] = []string{}
+		return s.Save()
+	}
+
+	existsTopics := strings.Join(s.data[userID], ",")
+	before, after, found := strings.Cut(existsTopics, topic+",")
+	if !found {
+		return fmt.Errorf("user has no such topic")
+	}
+
+	s.data[userID] = strings.Split(before+after, ",")
+
+	return s.Save()
+}
+
+func (s *FileStore) GetTopics(userID int64) []string {
+	s.mtx.RLock()
+	defer s.mtx.RUnlock()
+	topics := s.data[userID]
+	result := make([]string, len(topics))
+	copy(result, topics)
+	return result
 }
