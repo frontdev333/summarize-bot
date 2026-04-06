@@ -2,6 +2,7 @@ package main
 
 import (
 	"frontdev333/summarize-bot/internal/config"
+	"frontdev333/summarize-bot/internal/news"
 	"frontdev333/summarize-bot/internal/subscriptions"
 	"frontdev333/summarize-bot/internal/telegram"
 	"log/slog"
@@ -37,6 +38,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	provider := news.MockProvider{
+		Articles: map[string][]news.Article{
+			"golang": {
+				{Title: "Go 1.24 Released", Source: "go.dev", URL: "https://go.dev/blog/"},
+				{Title: "Understanding Goroutines", Source: "go.dev", URL: "https://go.dev/doc/"},
+			},
+			"backend": {
+				{Title: "Designing Reliable APIs", Source: "example.com", URL: "https://example.com/reliable-apis"},
+				{Title: "Caching Strategies in Microservices", Source: "example.com", URL: "https://example.com/caching-microservices"},
+			},
+		},
+	}
+
+	news.RegisterNewsHandlers(tgbot.Underlying(), store, &provider)
 	telegram.RegisterCoreHandlers(tgbot.Underlying())
 	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, 64)
 

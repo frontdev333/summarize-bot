@@ -24,7 +24,7 @@ type InMemoryStore struct {
 type FileStore struct {
 	mtx  *sync.RWMutex
 	path string
-	Data map[int64][]string `json:"Data"`
+	Data map[int64][]string `json:"data"`
 }
 
 func NewFileStore(pth string) (*FileStore, error) {
