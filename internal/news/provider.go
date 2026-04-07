@@ -156,6 +156,7 @@ func RegisterNewsHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, 
 					slog.Error("summarize", "article_id", a.ID, "error", err)
 					return err
 				}
+				cash.Set(a.ID, desc)
 			}
 
 			articleCard := fmt.Sprintf("\nЗаголовок: %s\nОписание: %s\nСсылка: %s\nИсточник: %s\n", a.Title, desc, a.URL, a.Source)
