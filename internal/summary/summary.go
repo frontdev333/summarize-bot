@@ -14,19 +14,19 @@ func (s *Stub) Summarize(text string, maxLen int) (string, error) {
 		return text, nil
 	}
 
-	cut := string(runes[maxLen:])
+	runes = runes[:maxLen]
 
-	for i := len(cut) - 1; i > 0; i-- {
-		v := cut[i]
+	for i := len(runes) - 1; i > 0; i-- {
+		v := runes[i]
 		if v == '.' || v == '!' || v == '?' {
-			return string(runes[:i]), nil
+			return string(runes[:i+1]), nil
 		}
 	}
 
-	for i := len(cut); i >= 0; i-- {
-		v := cut[i]
+	for i := len(runes) - 1; i > 0; i-- {
+		v := runes[i]
 		if v == ' ' {
-			return string(runes[:i]), nil
+			return string(runes[:i]) + "...", nil
 		}
 	}
 
