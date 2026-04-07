@@ -3,7 +3,9 @@ package news
 import (
 	"encoding/json"
 	"fmt"
+	"frontdev333/summarize-bot/internal/cache"
 	"frontdev333/summarize-bot/internal/subscriptions"
+	"frontdev333/summarize-bot/internal/summary"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -85,7 +87,7 @@ func (p *NewsAPIClient) FetchByTopic(topic string, limit int) ([]Article, error)
 		}
 
 		res[i] = Article{
-			ID:          "1",
+			ID:          a.Url,
 			Title:       a.Title,
 			URL:         a.Url,
 			Source:      a.Source.Name,
@@ -120,7 +122,8 @@ func (p *MockProvider) FetchByTopic(topic string, limit int) ([]Article, error) 
 	return arts, nil
 }
 
-func RegisterNewsHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, prov Provider) {
+func RegisterNewsHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, prov Provider, summarizer summary.Summarizer, cash *cache.SummaryCache) {
+
 	b.Handle("/news", func(ctx telebot.Context) error {
 		topics := subs.GetTopics(ctx.Sender().ID)
 		if len(topics) == 0 {
@@ -144,12 +147,21 @@ func RegisterNewsHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, 
 			if limit == 0 {
 				break
 			}
-			articleCard := fmt.Sprintf("\nЗаголовок: %s\nСсылка: %s\nИсточник: %s\n", a.Title, a.URL, a.Source)
+
+			desc, found := cash.Get(a.ID)
+			if !found {
+				var err error
+				desc, err = summarizer.Summarize(a.Description, 35)
+				if err != nil {
+					slog.Error("summarize", "article_id", a.ID, "error", err)
+					return err
+				}
+			}
+
+			articleCard := fmt.Sprintf("\nЗаголовок: %s\nОписание: %s\nСсылка: %s\nИсточник: %s\n", a.Title, desc, a.URL, a.Source)
 			res.WriteString(articleCard)
 			limit--
 		}
-
-		fmt.Println(res.String())
 
 		return ctx.Send(res.String())
 	})

@@ -1,13 +1,16 @@
 package main
 
 import (
+	"frontdev333/summarize-bot/internal/cache"
 	"frontdev333/summarize-bot/internal/config"
 	"frontdev333/summarize-bot/internal/news"
 	"frontdev333/summarize-bot/internal/subscriptions"
+	"frontdev333/summarize-bot/internal/summary"
 	"frontdev333/summarize-bot/internal/telegram"
 	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 )
 
 func main() {
@@ -61,7 +64,10 @@ func main() {
 		provider = secondary
 	}
 
-	news.RegisterNewsHandlers(tgbot.Underlying(), store, provider)
+	summarizer := &summary.Stub{}
+	cash := cache.NewSummaryCache(10 * time.Minute)
+
+	news.RegisterNewsHandlers(tgbot.Underlying(), store, provider, summarizer, cash)
 	telegram.RegisterCoreHandlers(tgbot.Underlying())
 	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, 64)
 

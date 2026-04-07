@@ -1,1 +1,4 @@
 bot_token:
+news_provider:
+  url:
+  api_key:

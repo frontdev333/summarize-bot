@@ -16,6 +16,14 @@ type SummaryCache struct {
 	ttl     time.Duration
 }
 
+func NewSummaryCache(ttl time.Duration) *SummaryCache {
+	return &SummaryCache{
+		mtx:     sync.RWMutex{},
+		entries: make(map[string]entry),
+		ttl:     ttl,
+	}
+}
+
 func (c *SummaryCache) Get(key string) (string, bool) {
 	c.mtx.RLock()
 	defer c.mtx.RUnlock()
@@ -29,8 +37,10 @@ func (c *SummaryCache) Get(key string) (string, bool) {
 }
 
 func (c *SummaryCache) Set(key, value string) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
 	c.entries[key] = entry{
 		value:     value,
-		expiresAt: time.Now(),
+		expiresAt: time.Now().Add(5 * c.ttl),
 	}
 }
