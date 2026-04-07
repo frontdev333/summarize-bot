@@ -151,7 +151,7 @@ func RegisterNewsHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, 
 			desc, found := cash.Get(a.ID)
 			if !found {
 				var err error
-				desc, err = summarizer.Summarize(a.Description, 35)
+				desc, err = summarizer.Summarize(a.Description, 128)
 				if err != nil {
 					slog.Error("summarize", "article_id", a.ID, "error", err)
 					return err

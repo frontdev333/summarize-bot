@@ -64,7 +64,8 @@ func main() {
 		provider = secondary
 	}
 
-	summarizer := &summary.Stub{}
+	summarizer := summary.NewFallbackSummarizer(cfg.GeminiModel, cfg.GeminiAPIKey)
+
 	cash := cache.NewSummaryCache(10 * time.Minute)
 
 	news.RegisterNewsHandlers(tgbot.Underlying(), store, provider, summarizer, cash)

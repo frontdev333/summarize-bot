@@ -10,6 +10,8 @@ type Config struct {
 	LogLevel         string
 	StorePath        string
 	NewsAPIKey       string
+	GeminiAPIKey     string
+	GeminiModel      string
 }
 
 func LoadConfig() (Config, error) {
@@ -33,10 +35,22 @@ func LoadConfig() (Config, error) {
 		key = ""
 	}
 
+	apiKey, ok := os.LookupEnv("GOOGLE_API_KEY")
+	if !ok {
+		apiKey = ""
+	}
+
+	model, ok := os.LookupEnv("GEMINI_MODEL")
+	if !ok {
+		model = "gemini-2.5-flash"
+	}
+
 	return Config{
 		TelegramBotToken: token,
 		LogLevel:         level,
 		StorePath:        path,
 		NewsAPIKey:       key,
+		GeminiAPIKey:     apiKey,
+		GeminiModel:      model,
 	}, nil
 }
