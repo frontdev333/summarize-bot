@@ -21,7 +21,7 @@ func (f *FallbackSummarizer) Summarize(text string, maxLen int) (string, error) 
 	if f.primary.key != "" {
 		res, err := f.primary.Summarize(text, maxLen)
 		if err == nil {
-			return f.secondary.Summarize(res, maxLen)
+			return handleSummarizing(res, maxLen)
 		}
 	}
 	return f.secondary.Summarize(text, maxLen)
@@ -106,6 +106,10 @@ func (g *GeminiClient) Summarize(text string, maxLen int) (string, error) {
 }
 
 func (s *Stub) Summarize(text string, maxLen int) (string, error) {
+	return handleSummarizing(text, maxLen)
+}
+
+func handleSummarizing(text string, maxLen int) (string, error) {
 	runes := []rune(text)
 
 	if len(runes) <= maxLen {
