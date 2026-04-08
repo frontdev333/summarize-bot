@@ -46,12 +46,6 @@ type GeminiClient struct {
 }
 
 func (g *GeminiClient) Summarize(text string, maxLen int) (string, error) {
-	runes := []rune(text)
-
-	if len(runes) <= maxLen {
-		return text, nil
-	}
-
 	prompt := fmt.Sprintf("Будь добр, сделай пожалуйста краткое резюме-выжимку на русском языке из текста на %d символов. Заверши выжимку полным предложением. Вот текст: %s", maxLen, text)
 
 	url := fmt.Sprintf(
