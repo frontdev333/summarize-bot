@@ -18,11 +18,13 @@ type FallbackSummarizer struct {
 }
 
 func (f *FallbackSummarizer) Summarize(text string, maxLen int) (string, error) {
-	if f.primary.key == "" {
-		return f.secondary.Summarize(text, maxLen)
+	if f.primary.key != "" {
+		res, err := f.primary.Summarize(text, maxLen)
+		if err == nil {
+			return f.secondary.Summarize(res, maxLen)
+		}
 	}
-
-	return f.primary.Summarize(text, maxLen)
+	return f.secondary.Summarize(text, maxLen)
 }
 
 func NewFallbackSummarizer(model, key string) *FallbackSummarizer {
