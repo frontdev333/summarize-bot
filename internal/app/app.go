@@ -65,9 +65,9 @@ func Run() error {
 
 	cash := cache.NewSummaryCache(10 * time.Minute)
 
-	news.RegisterNewsHandlers(tgbot.Underlying(), store, provider, summarizer, cash, cfg.MaxTopics, cfg.MaxNewsPerTopic, cfg.MaxNewsPerReq)
+	news.RegisterNewsHandlers(tgbot.Underlying(), store, provider, summarizer, cash, cfg.MaxNewsPerTopic, cfg.MaxNewsPerReq)
 	telegram.RegisterCoreHandlers(tgbot.Underlying())
-	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, 64)
+	telegram.RegisterSubscriptionHandlers(tgbot.Underlying(), store, cfg.MaxTopics)
 
 	go func() {
 		<-shtdwn

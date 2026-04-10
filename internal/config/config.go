@@ -63,7 +63,7 @@ func LoadConfig() (Config, error) {
 	}
 
 	var maxNewsPerReq int
-	maxNewsPerReqEnv, ok := os.LookupEnv("MAX_TOPICS_PER_USER")
+	maxNewsPerReqEnv, ok := os.LookupEnv("MAX_NEWS_PER_REQUEST")
 	if !ok {
 		maxNewsPerReq = 10
 	} else {
