@@ -128,7 +128,6 @@ func RegisterNewsHandlers(
 	prov Provider,
 	summarizer summary.Summarizer,
 	cash *cache.SummaryCache,
-	maxTopics int,
 	MaxNewsPerTopic,
 	MaxNewsPerReq int,
 ) {
@@ -137,10 +136,6 @@ func RegisterNewsHandlers(
 		topics := subs.GetTopics(ctx.Sender().ID)
 		if len(topics) == 0 {
 			return ctx.Send("У вас нет подписок. Добавьте темы через /add <topic>")
-		}
-
-		if len(topics) >= maxTopics {
-			return ctx.Send(fmt.Sprintf("Достигнут лимит тем (%d)", maxTopics))
 		}
 
 		allArticles := getAllArticles(topics, prov, MaxNewsPerTopic)
@@ -154,8 +149,14 @@ func RegisterNewsHandlers(
 	})
 }
 
-func makeArticlesMessage(allArticles []Article, limit int, cash *cache.SummaryCache, summarizer summary.Summarizer) (string, error) {
+func makeArticlesMessage(
+	allArticles []Article,
+	limit int,
+	cash *cache.SummaryCache,
+	summarizer summary.Summarizer,
+) (string, error) {
 	var res strings.Builder
+	slog.Info("articles fetched", "limit_exceeded_count", len(allArticles)-limit)
 	for _, a := range allArticles {
 		if limit == 0 {
 			break
@@ -198,13 +199,36 @@ func deduplicateArticles(articles []Article) []Article {
 	seen := make(map[string]struct{})
 	var unique []Article
 
+	duplicateCounter := 0
+
 	for _, a := range articles {
-		if _, ok := seen[a.ID]; ok {
+		normalizedUrl, err := normalizeUrl(a)
+		if err != nil {
+			slog.Error("parse url", "error", err)
 			continue
 		}
-		seen[a.ID] = struct{}{}
+
+		if _, ok := seen[normalizedUrl]; ok {
+			duplicateCounter++
+			continue
+		}
+		seen[normalizedUrl] = struct{}{}
 		unique = append(unique, a)
 	}
 
+	slog.Info("duplicates", "count", duplicateCounter)
+
 	return unique
+}
+
+func normalizeUrl(a Article) (string, error) {
+	parsedUrl, err := url.Parse(a.ID)
+	if err != nil {
+		return "", err
+	}
+
+	parsedUrl.RawQuery = ""
+	parsedUrl.Fragment = ""
+
+	return parsedUrl.String(), nil
 }

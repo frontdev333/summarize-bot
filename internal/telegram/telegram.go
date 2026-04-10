@@ -1,6 +1,7 @@
 package telegram
 
 import (
+	"fmt"
 	"frontdev333/summarize-bot/internal/subscriptions"
 	"log/slog"
 	"strings"
@@ -62,6 +63,11 @@ func RegisterCoreHandlers(b *telebot.Bot) {
 
 func RegisterSubscriptionHandlers(b *telebot.Bot, subs subscriptions.SubscriptionStore, maxTopics int) {
 	b.Handle("/add", func(ctx telebot.Context) error {
+		topics := subs.GetTopics(ctx.Sender().ID)
+		if len(topics) >= maxTopics {
+			return ctx.Send(fmt.Sprintf("Достигнут лимит тем (%d)", maxTopics))
+		}
+
 		topic, _ := strings.CutPrefix(ctx.Text(), "/add")
 		topic = strings.TrimSpace(topic)
 
