@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 type Config struct {
@@ -12,6 +13,9 @@ type Config struct {
 	NewsAPIKey       string
 	GeminiAPIKey     string
 	GeminiModel      string
+	MaxTopics        int
+	MaxNewsPerReq    int
+	MaxNewsPerTopic  int
 }
 
 func LoadConfig() (Config, error) {
@@ -45,6 +49,43 @@ func LoadConfig() (Config, error) {
 		model = "gemini-2.5-flash"
 	}
 
+	var err error
+
+	var maxTopics int
+	maxTopicsEnv, ok := os.LookupEnv("MAX_TOPICS_PER_USER")
+	if !ok {
+		maxTopics = 10
+	} else {
+		maxTopics, err = strconv.Atoi(maxTopicsEnv)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
+	var maxNewsPerReq int
+	maxNewsPerReqEnv, ok := os.LookupEnv("MAX_TOPICS_PER_USER")
+	if !ok {
+		maxNewsPerReq = 10
+	} else {
+		var err error
+		maxNewsPerReq, err = strconv.Atoi(maxNewsPerReqEnv)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
+	var maxNewsPerTopic int
+	maxNewsPerTopicEnv, ok := os.LookupEnv("MAX_TOPICS_PER_USER")
+	if !ok {
+		maxNewsPerTopic = 0
+	} else {
+		var err error
+		maxNewsPerTopic, err = strconv.Atoi(maxNewsPerTopicEnv)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
 	return Config{
 		TelegramBotToken: token,
 		LogLevel:         level,
@@ -52,5 +93,8 @@ func LoadConfig() (Config, error) {
 		NewsAPIKey:       key,
 		GeminiAPIKey:     apiKey,
 		GeminiModel:      model,
+		MaxTopics:        maxTopics,
+		MaxNewsPerReq:    maxNewsPerReq,
+		MaxNewsPerTopic:  maxNewsPerTopic,
 	}, nil
 }
