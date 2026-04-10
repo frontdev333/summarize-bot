@@ -2,6 +2,7 @@ package news
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"frontdev333/summarize-bot/internal/cache"
 	"frontdev333/summarize-bot/internal/subscriptions"
@@ -14,6 +15,8 @@ import (
 
 	"gopkg.in/telebot.v4"
 )
+
+var ProviderResponseError = errors.New("provider is unavailable")
 
 type Provider interface {
 	FetchByTopic(topic string, limit int) ([]Article, error)
@@ -71,14 +74,14 @@ func (p *NewsAPIClient) FetchByTopic(topic string, limit int) ([]Article, error)
 
 	var articles NewsAPIArticles
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status", "http_status", resp.StatusCode)
+		return nil, fmt.Errorf("http status: %d %w", resp.StatusCode, ProviderResponseError)
 	}
 
 	if err = json.NewDecoder(resp.Body).Decode(&articles); err != nil {
 		return nil, err
 	}
 
-	res := make([]Article, articles.TotalResults)
+	res := make([]Article, 0, limit)
 
 	i := 0
 	for _, a := range articles.Articles {
@@ -138,7 +141,10 @@ func RegisterNewsHandlers(
 			return ctx.Send("У вас нет подписок. Добавьте темы через /add <topic>")
 		}
 
-		allArticles := getAllArticles(topics, prov, MaxNewsPerTopic)
+		allArticles, err := getAllArticles(topics, prov, MaxNewsPerTopic)
+		if err != nil {
+			return ctx.Send("Новости временно недоступны, попробуйте позже")
+		}
 
 		res, err := makeArticlesMessage(allArticles, MaxNewsPerReq, cash, summarizer)
 		if err != nil {
@@ -180,19 +186,22 @@ func makeArticlesMessage(
 	return res.String(), nil
 }
 
-func getAllArticles(topics []string, prov Provider, MaxNewsPerTopic int) []Article {
+func getAllArticles(topics []string, prov Provider, MaxNewsPerTopic int) ([]Article, error) {
 	allArticles := make([]Article, 0)
 
 	for _, v := range topics {
 		partArticles, err := prov.FetchByTopic(v, MaxNewsPerTopic)
 		if err != nil {
+			if errors.Is(err, ProviderResponseError) {
+				return nil, err
+			}
 			slog.Error("can not fetch articles", "topic", v, "error", err)
 			continue
 		}
 
 		allArticles = append(allArticles, partArticles...)
 	}
-	return deduplicateArticles(allArticles)
+	return deduplicateArticles(allArticles), nil
 }
 
 func deduplicateArticles(articles []Article) []Article {
