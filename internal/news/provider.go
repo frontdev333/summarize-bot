@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/telebot.v4"
@@ -240,4 +241,24 @@ func normalizeUrl(a Article) (string, error) {
 	parsedUrl.Fragment = ""
 
 	return parsedUrl.String(), nil
+}
+
+func SummarizeInParallelSimple(
+	articles []Article,
+	summarizer summary.Summarizer,
+	cache *cache.SummaryCache,
+	maxParallel int,
+) []string {
+	var wg sync.WaitGroup
+	results := make([]string, len(articles))
+
+	for i, art := range articles {
+		wg.Add(1)
+		go func(idx int, text string) {
+			defer wg.Done()
+			results[idx], _ = summarizer.Summarize(text, 200)
+		}(i, art.Description)
+	}
+	wg.Wait()
+	return nil
 }

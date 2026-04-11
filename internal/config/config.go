@@ -7,15 +7,16 @@ import (
 )
 
 type Config struct {
-	TelegramBotToken string
-	LogLevel         string
-	StorePath        string
-	NewsAPIKey       string
-	GeminiAPIKey     string
-	GeminiModel      string
-	MaxTopics        int
-	MaxNewsPerReq    int
-	MaxNewsPerTopic  int
+	TelegramBotToken     string
+	LogLevel             string
+	StorePath            string
+	NewsAPIKey           string
+	GeminiAPIKey         string
+	GeminiModel          string
+	MaxTopics            int
+	MaxNewsPerReq        int
+	MaxNewsPerTopic      int
+	GeminiMaxConcurrency int
 }
 
 func LoadConfig() (Config, error) {
@@ -86,15 +87,28 @@ func LoadConfig() (Config, error) {
 		}
 	}
 
+	var geminiMaxConcurrency int
+	geminiMaxConcurrencyEnv, ok := os.LookupEnv("GEMINI_MAX_CONCURRENCY")
+	if !ok {
+		geminiMaxConcurrency = 4
+	} else {
+		var err error
+		geminiMaxConcurrency, err = strconv.Atoi(geminiMaxConcurrencyEnv)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
 	return Config{
-		TelegramBotToken: token,
-		LogLevel:         level,
-		StorePath:        path,
-		NewsAPIKey:       key,
-		GeminiAPIKey:     apiKey,
-		GeminiModel:      model,
-		MaxTopics:        maxTopics,
-		MaxNewsPerReq:    maxNewsPerReq,
-		MaxNewsPerTopic:  maxNewsPerTopic,
+		TelegramBotToken:     token,
+		LogLevel:             level,
+		StorePath:            path,
+		NewsAPIKey:           key,
+		GeminiAPIKey:         apiKey,
+		GeminiModel:          model,
+		MaxTopics:            maxTopics,
+		MaxNewsPerReq:        maxNewsPerReq,
+		MaxNewsPerTopic:      maxNewsPerTopic,
+		GeminiMaxConcurrency: geminiMaxConcurrency,
 	}, nil
 }
