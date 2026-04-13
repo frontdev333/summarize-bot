@@ -132,8 +132,9 @@ func RegisterNewsHandlers(
 	prov Provider,
 	summarizer summary.Summarizer,
 	cash *cache.SummaryCache,
-	MaxNewsPerTopic,
-	MaxNewsPerReq int,
+	maxNewsPerTopic,
+	maxNewsPerReq,
+	maxParallel int,
 ) {
 
 	b.Handle("/news", func(ctx telebot.Context) error {
@@ -142,12 +143,12 @@ func RegisterNewsHandlers(
 			return ctx.Send("У вас нет подписок. Добавьте темы через /add <topic>")
 		}
 
-		allArticles, err := getAllArticles(topics, prov, MaxNewsPerTopic)
+		allArticles, err := getAllArticles(topics, prov, maxNewsPerTopic)
 		if err != nil {
 			return ctx.Send("Новости временно недоступны, попробуйте позже")
 		}
 
-		res, err := makeArticlesMessage(allArticles, MaxNewsPerReq, cash, summarizer)
+		res, err := makeArticlesMessage(allArticles, maxNewsPerReq, cash, summarizer, maxParallel)
 		if err != nil {
 			return err
 		}
@@ -161,26 +162,17 @@ func makeArticlesMessage(
 	limit int,
 	cash *cache.SummaryCache,
 	summarizer summary.Summarizer,
+	maxParallel int,
 ) (string, error) {
 	var res strings.Builder
 	slog.Info("articles fetched", "limit_exceeded_count", len(allArticles)-limit)
-	for _, a := range allArticles {
+	descriptions := SummarizeInParallelSimple(allArticles, summarizer, cash, maxParallel)
+	for i, a := range allArticles {
 		if limit == 0 {
 			break
 		}
 
-		desc, found := cash.Get(a.ID)
-		if !found {
-			var err error
-			desc, err = summarizer.Summarize(a.Description, 128)
-			if err != nil {
-				slog.Error("summarize", "article_id", a.ID, "error", err)
-				desc = ""
-			}
-			cash.Set(a.ID, desc)
-		}
-
-		articleCard := fmt.Sprintf("\nЗаголовок: %s\nОписание: %s\nСсылка: %s\nИсточник: %s\n", a.Title, desc, a.URL, a.Source)
+		articleCard := fmt.Sprintf("\nЗаголовок: %s\nОписание: %s\nСсылка: %s\nИсточник: %s\n", a.Title, descriptions[i], a.URL, a.Source)
 		res.WriteString(articleCard)
 		limit--
 	}
@@ -249,16 +241,50 @@ func SummarizeInParallelSimple(
 	cache *cache.SummaryCache,
 	maxParallel int,
 ) []string {
-	var wg sync.WaitGroup
-	results := make([]string, len(articles))
-
-	for i, art := range articles {
-		wg.Add(1)
-		go func(idx int, text string) {
-			defer wg.Done()
-			results[idx], _ = summarizer.Summarize(text, 200)
-		}(i, art.Description)
+	type task struct {
+		id int
+		a  Article
 	}
-	wg.Wait()
-	return nil
+
+	wg := &sync.WaitGroup{}
+	results := make([]string, len(articles))
+	queue := make([]task, 0)
+
+	for i, a := range articles {
+		cachedDesc, ok := cache.Get(a.ID)
+		if ok {
+			results[i] = cachedDesc
+			continue
+		}
+
+		queue = append(queue, task{i, a})
+	}
+
+	for i := 0; i < len(queue); i += maxParallel {
+		end := i + maxParallel
+		if end > len(queue) {
+			end = len(queue)
+		}
+
+		batch := queue[i:end]
+
+		for _, t := range batch {
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				desc, err := summarizer.Summarize(t.a.Description, 255)
+				if err != nil {
+					slog.Error("parallel summarize", "error", err)
+					return
+				}
+				cache.Set(t.a.ID, desc)
+				results[t.id] = desc
+			}()
+			wg.Wait()
+		}
+
+	}
+
+	return results
 }
