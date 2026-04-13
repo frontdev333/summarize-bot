@@ -281,8 +281,8 @@ func SummarizeInParallelSimple(
 				cache.Set(t.a.ID, desc)
 				results[t.id] = desc
 			}()
-			wg.Wait()
 		}
+		wg.Wait()
 
 	}
 
