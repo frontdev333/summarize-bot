@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"math/rand"
 	"net/http"
 	"time"
@@ -99,13 +98,13 @@ func (g *GeminiClient) Summarize(text string, maxLen int) (string, error) {
 
 		if resp.StatusCode != http.StatusOK {
 			if !isRetryable(resp.StatusCode) {
-				slog.Error("request", "attempt", attempt, "status", resp.Status)
-				continue
+				return "", fmt.Errorf("request: %s, attempt: %d", resp.Status, attempt)
 			}
 
 			backoff := g.baseDelay * time.Duration(1<<uint(attempt-1))
 			jitter := time.Duration(rand.Int63n(int64(backoff / 5)))
 			time.Sleep(backoff + jitter)
+			continue
 
 		}
 		if err = json.NewDecoder(resp.Body).Decode(dto); err != nil {
