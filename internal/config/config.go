@@ -17,6 +17,8 @@ type Config struct {
 	MaxNewsPerReq        int
 	MaxNewsPerTopic      int
 	GeminiMaxConcurrency int
+	GeminiRetries        int
+	GeminiBackoffMs      int
 }
 
 func LoadConfig() (Config, error) {
@@ -99,6 +101,30 @@ func LoadConfig() (Config, error) {
 		}
 	}
 
+	var geminiRetries int
+	geminiRetriesEnv, ok := os.LookupEnv("GEMINI_RETRIES")
+	if !ok {
+		geminiRetries = 3
+	} else {
+		var err error
+		geminiRetries, err = strconv.Atoi(geminiRetriesEnv)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
+	var geminiBackoffMs int
+	geminiBackoffMsEnv, ok := os.LookupEnv("GEMINI_BACKOFF_MS")
+	if !ok {
+		geminiBackoffMs = 400
+	} else {
+		var err error
+		geminiBackoffMs, err = strconv.Atoi(geminiBackoffMsEnv)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
 	return Config{
 		TelegramBotToken:     token,
 		LogLevel:             level,
@@ -110,5 +136,7 @@ func LoadConfig() (Config, error) {
 		MaxNewsPerReq:        maxNewsPerReq,
 		MaxNewsPerTopic:      maxNewsPerTopic,
 		GeminiMaxConcurrency: geminiMaxConcurrency,
+		GeminiRetries:        geminiRetries,
+		GeminiBackoffMs:      geminiBackoffMs,
 	}, nil
 }

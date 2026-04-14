@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"math/rand"
 	"net/http"
 	"time"
 )
@@ -27,11 +29,14 @@ func (f *FallbackSummarizer) Summarize(text string, maxLen int) (string, error) 
 	return f.secondary.Summarize(text, maxLen)
 }
 
-func NewFallbackSummarizer(model, key string) *FallbackSummarizer {
+func NewFallbackSummarizer(model, key string, backoff, retries int) *FallbackSummarizer {
+
 	return &FallbackSummarizer{
 		primary: &GeminiClient{
-			model: model,
-			key:   key,
+			model:      model,
+			key:        key,
+			baseDelay:  time.Duration(backoff) * time.Millisecond,
+			maxRetries: retries,
 		},
 		secondary: &Stub{},
 	}
@@ -41,8 +46,10 @@ type Stub struct {
 }
 
 type GeminiClient struct {
-	model string
-	key   string
+	model      string
+	key        string
+	baseDelay  time.Duration
+	maxRetries int
 }
 
 func (g *GeminiClient) Summarize(text string, maxLen int) (string, error) {
@@ -83,26 +90,36 @@ func (g *GeminiClient) Summarize(text string, maxLen int) (string, error) {
 	req.Header.Set("Content-Type", "application/json")
 
 	c := http.Client{Timeout: 30 * time.Second}
-	resp, err := c.Do(req)
-	if err != nil {
-		return "", err
+
+	for attempt := 1; attempt <= g.maxRetries; attempt++ {
+		resp, err := c.Do(req)
+		if err != nil {
+			return "", err
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			if !isRetryable(resp.StatusCode) {
+				slog.Error("request", "attempt", attempt, "status", resp.Status)
+				continue
+			}
+
+			backoff := g.baseDelay * time.Duration(1<<uint(attempt-1))
+			jitter := time.Duration(rand.Int63n(int64(backoff / 5)))
+			time.Sleep(backoff + jitter)
+
+		}
+		if err = json.NewDecoder(resp.Body).Decode(dto); err != nil {
+			return "", err
+		}
+
+		fmt.Printf("%#v", dto)
+		text = dto.Candidates[0].Content.Parts[0].Data
+
+		resp.Body.Close()
+		return text, nil
 	}
-	defer resp.Body.Close()
 
-	fmt.Println(resp.Status)
-
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("bad status code: %s", resp.Status)
-	}
-
-	if err = json.NewDecoder(resp.Body).Decode(dto); err != nil {
-		return "", err
-	}
-
-	fmt.Printf("%#v", dto)
-	text = dto.Candidates[0].Content.Parts[0].Data
-
-	return text, nil
+	return "", err
 }
 
 func (s *Stub) Summarize(text string, maxLen int) (string, error) {
@@ -133,4 +150,15 @@ func handleSummarizing(text string, maxLen int) (string, error) {
 	}
 
 	return string(runes[:maxLen]) + "...", nil
+}
+
+func isRetryable(code int) bool {
+	switch true {
+	case code == http.StatusTooManyRequests:
+		return true
+	case code >= 500 && code <= 599:
+		return true
+	default:
+		return false
+	}
 }

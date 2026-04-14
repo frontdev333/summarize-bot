@@ -248,7 +248,7 @@ func SummarizeInParallelSimple(
 
 	wg := &sync.WaitGroup{}
 	results := make([]string, len(articles))
-	queue := make([]task, 0)
+	sem := make(chan interface{}, maxParallel)
 
 	for i, a := range articles {
 		cachedDesc, ok := cache.Get(a.ID)
@@ -257,34 +257,26 @@ func SummarizeInParallelSimple(
 			continue
 		}
 
-		queue = append(queue, task{i, a})
-	}
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
 
-	for i := 0; i < len(queue); i += maxParallel {
-		end := i + maxParallel
-		if end > len(queue) {
-			end = len(queue)
-		}
-
-		batch := queue[i:end]
-
-		for _, t := range batch {
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				desc, err := summarizer.Summarize(t.a.Description, 255)
-				if err != nil {
-					slog.Error("parallel summarize", "error", err)
-					return
-				}
-				cache.Set(t.a.ID, desc)
-				results[t.id] = desc
+			sem <- struct{}{}
+			defer func() {
+				<-sem
 			}()
-		}
-		wg.Wait()
 
+			desc, err := summarizer.Summarize(a.Description, 255)
+			if err != nil {
+				slog.Error("parallel summarize", "error", err)
+				return
+			}
+			cache.Set(a.ID, desc)
+			results[id] = desc
+		}(i)
 	}
+
+	wg.Wait()
 
 	return results
 }

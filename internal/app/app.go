@@ -61,7 +61,7 @@ func Run() error {
 		provider = secondary
 	}
 
-	summarizer := summary.NewFallbackSummarizer(cfg.GeminiModel, cfg.GeminiAPIKey)
+	summarizer := summary.NewFallbackSummarizer(cfg.GeminiModel, cfg.GeminiAPIKey, cfg.GeminiBackoffMs, cfg.GeminiRetries)
 
 	cash := cache.NewSummaryCache(10 * time.Minute)
 
