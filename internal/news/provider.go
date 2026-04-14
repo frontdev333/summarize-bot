@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"gopkg.in/telebot.v4"
@@ -244,8 +245,8 @@ func SummarizeInParallelSimple(
 	wg := &sync.WaitGroup{}
 	results := make([]string, len(articles))
 	sem := make(chan struct{}, maxParallel)
-	failedCounter := 0
-	successCounter := 0
+	var failedCounter atomic.Uint32
+	var successCounter atomic.Uint32
 
 	for i, a := range articles {
 		cachedDesc, ok := cache.Get(a.ID)
@@ -266,17 +267,17 @@ func SummarizeInParallelSimple(
 			desc, err := summarizer.Summarize(a.Description, 255)
 			if err != nil {
 				slog.Error("parallel summarize", "error", err)
-				failedCounter++
+				failedCounter.Add(1)
 				return
 			}
 			cache.Set(a.ID, desc)
 			results[id] = desc
-			successCounter++
+			successCounter.Add(1)
 		}(i)
 	}
 
 	wg.Wait()
-	slog.Info("Parallel summarize is done", "success_count", successCounter, "fails_count", failedCounter)
+	slog.Info("Parallel summarize is done", "success_count", successCounter.Load(), "fails_count", failedCounter.Load())
 
 	return results
 }
